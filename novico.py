@@ -46,13 +46,6 @@ try:
 except ImportError:
     HAS_MPL = False
 
-# Cryptography (opcional — encriptação de arquivos)
-try:
-    from cryptography.fernet import Fernet
-    HAS_CRYPTO = True
-except ImportError:
-    HAS_CRYPTO = False
-
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
@@ -272,8 +265,8 @@ class NvBtn(ctk.CTkButton):
     """Botão NOVICO com borda neon e hover animado."""
     def __init__(self, master, T: dict, color_key: str = "a1", **kw):
         c = T[color_key]
-        kw.setdefault("fg_color",    c)
-        kw.setdefault("hover_color", c)
+        kw.setdefault("fg_color",    c+"18")
+        kw.setdefault("hover_color", c+"30")
         kw.setdefault("border_color",c)
         kw.setdefault("border_width",1)
         kw.setdefault("text_color",  c)
@@ -504,8 +497,6 @@ class Novico(ctk.CTk):
             ("cleaner",    "🧹","Limpador"),
             ("scheduler",  "🗓","Agendador"),
             ("logs",       "📋","Logs"),
-            ("optimizer",  "⚡","Otimizador"),
-            ("encryptor",  "🔒","Encriptador"),
             ("settings",   "⚙", "Configurações"),
         ]
         for tid, icon, label in nav:
@@ -596,8 +587,6 @@ class Novico(ctk.CTk):
         self._build_cleaner()
         self._build_scheduler()
         self._build_logs()
-        self._build_optimizer()
-        self._build_encryptor()
         self._build_settings()
 
     def _tick(self):
@@ -615,8 +604,7 @@ class Novico(ctk.CTk):
             "quarantine":"Quarentena","firewall":"Firewall & Rede",
             "vuln":"Análise de Vulnerabilidades","vault":"Cofre de Senhas",
             "cleaner":"Limpador do Sistema","scheduler":"Agendador",
-            "logs":"Logs de Eventos","optimizer":"Otimizador do Sistema",
-            "encryptor":"Encriptador de Arquivos","settings":"Configurações & Temas",
+            "logs":"Logs de Eventos","settings":"Configurações & Temas",
         }
         self._hdr_title.configure(text=titles.get(tid, tid.title()))
         # Refresh automático de certas abas
@@ -1955,235 +1943,6 @@ class Novico(ctk.CTk):
             initialfile=f"novico_log_{datetime.datetime.now().strftime('%Y%m%d')}.txt")
         if p and LOG.exists(): shutil.copy(str(LOG),p)
         if p: messagebox.showinfo("Exportado",f"Log salvo em:\n{p}")
-
-    # ════════════════════════════════════════════════════════════════════════
-    # ABA 12 — OTIMIZADOR DO SISTEMA
-    # ════════════════════════════════════════════════════════════════════════
-    def _build_optimizer(self):
-        T=self.T; fh=T["fh"]
-        f = ctk.CTkFrame(self.content, fg_color="transparent")
-        self._tabs["optimizer"] = f
-
-        tb = NvCard(f,T); tb.pack(fill="x",pady=(0,8))
-        row = ctk.CTkFrame(tb,fg_color="transparent"); row.pack(fill="x",padx=14,pady=10)
-        ctk.CTkLabel(row,text="⚡  Otimizador do Sistema",
-                     font=(fh,13,"bold"),text_color=T["a1"]).pack(side="left")
-        NvBtn(tb,T,"a1",text="▶ Otimizar",width=130,height=34,
-              font=(fh,11,"bold"),command=self._opt_run).pack(in_=row,side="right",padx=10)
-
-        # Status
-        st = ctk.CTkFrame(f, fg_color="transparent")
-        st.pack(fill="x", pady=(0,8))
-        self._opt_tiles: dict[str,ctk.StringVar] = {}
-        for lbl,ck in [("Disco","a1"),("RAM","a2"),("CPU","warn"),("Speed","ok")]:
-            c=NvCard(f,T); c.pack(in_=st,side="left",expand=True,fill="x",padx=4)
-            v=ctk.StringVar(value="—"); self._opt_tiles[lbl]=v
-            ctk.CTkLabel(c,text=lbl,font=(fh,8),text_color=T["dim"]).pack(pady=(8,2))
-            ctk.CTkLabel(c,textvariable=v,font=(fh,15,"bold"),
-                         text_color=T[ck]).pack(pady=(0,8))
-
-        # Log
-        self._opt_log = ctk.CTkTextbox(f,height=280,font=("Courier New",10),
-            fg_color=T["bg2"],text_color=T["ok"],border_color=T["brd"],border_width=1)
-        self._opt_log.pack(fill="both",expand=True)
-        self._opt_log.insert("end","⚡ Otimizador: Pronto para usar\n")
-        self._opt_log.configure(state="disabled")
-
-    def _opt_run(self):
-        self._opt_log.configure(state="normal")
-        self._opt_log.delete("1.0","end")
-        self._opt_log.insert("end","⚡ Iniciando otimização...\n\n")
-        self._opt_log.configure(state="disabled")
-        
-        def worker():
-            T=self.T
-            messages = []
-            
-            # Limpar cache DNS
-            try:
-                if platform.system()=="Windows":
-                    subprocess.run(["ipconfig","/flushdns"],capture_output=True,timeout=5)
-                    messages.append("✓ Cache DNS limpo")
-            except Exception as e:
-                messages.append(f"✗ Erro ao limpar DNS: {str(e)[:30]}")
-            
-            # Desfragmentação simulada
-            try:
-                disk_free = psutil.disk_usage("/").free
-                messages.append(f"✓ Espaço em disco: {fmt_b(disk_free)}")
-            except Exception:
-                pass
-            
-            # Status de processo
-            try:
-                procs = len(list(psutil.process_iter(["pid"])))
-                messages.append(f"✓ Processos ativos: {procs}")
-                self.after(0, self._opt_tiles["Disco"].set, fmt_b(disk_free))
-            except Exception:
-                pass
-            
-            # RAM otimizada
-            try:
-                ram_percent = psutil.virtual_memory().percent
-                messages.append(f"✓ Memória utilizada: {ram_percent:.1f}%")
-                self.after(0, self._opt_tiles["RAM"].set, f"{ram_percent:.1f}%")
-            except Exception:
-                pass
-            
-            # CPU
-            try:
-                cpu_percent = psutil.cpu_percent(interval=1)
-                messages.append(f"✓ CPU: {cpu_percent:.1f}%")
-                self.after(0, self._opt_tiles["CPU"].set, f"{cpu_percent:.1f}%")
-            except Exception:
-                pass
-            
-            messages.append("\n═ Otimização concluída ═")
-            self.after(0, self._opt_tiles["Speed"].set, "Rápido ✓")
-            
-            result = "\n".join(messages)
-            self.after(0, self._opt_write, result)
-            log("Sistema otimizado")
-            self.after(0, self.toast.push, "✓ Otimização Concluída",
-                      "Sistema otimizado com sucesso!", "ok")
-        
-        threading.Thread(target=worker, daemon=True).start()
-    
-    def _opt_write(self, msg):
-        self._opt_log.configure(state="normal")
-        self._opt_log.delete("1.0","end")
-        self._opt_log.insert("end",msg+"\n")
-        self._opt_log.configure(state="disabled")
-
-    # ════════════════════════════════════════════════════════════════════════
-    # ABA 13 — ENCRIPTADOR DE ARQUIVOS
-    # ════════════════════════════════════════════════════════════════════════
-    def _build_encryptor(self):
-        T=self.T; fh=T["fh"]
-        f = ctk.CTkFrame(self.content, fg_color="transparent")
-        self._tabs["encryptor"] = f
-
-        if not HAS_CRYPTO:
-            ctk.CTkLabel(f,
-                text="🔒 Encriptador de Arquivos\n\n"
-                     "pip install cryptography\n\n"
-                     "para usar este recurso",
-                font=(fh,12), text_color=T["warn"]).pack(expand=True)
-            return
-
-        tb = NvCard(f,T); tb.pack(fill="x",pady=(0,8))
-        row = ctk.CTkFrame(tb,fg_color="transparent"); row.pack(fill="x",padx=14,pady=10)
-        ctk.CTkLabel(row,text="🔒  Encriptador de Arquivos",
-                     font=(fh,13,"bold"),text_color=T["a1"]).pack(side="left")
-        NvBtn(tb,T,"ok",text="🔐 Encriptar",width=130,height=34,
-              font=(fh,11,"bold"),command=self._enc_encrypt).pack(in_=row,side="right",padx=4)
-        NvBtn(tb,T,"a2",text="🔓 Decriptar",width=130,height=34,
-              font=(fh,11,"bold"),command=self._enc_decrypt).pack(in_=row,side="right",padx=4)
-
-        # Painel de seleção
-        fc = NvCard(f,T); fc.pack(fill="x",pady=(0,8))
-        fcr = ctk.CTkFrame(fc,fg_color="transparent"); fcr.pack(fill="x",padx=14,pady=10)
-        ctk.CTkLabel(fcr,text="Arquivo:",font=(fh,10),text_color=T["dim"]).pack(side="left")
-        self._enc_file = ctk.StringVar()
-        ctk.CTkEntry(fcr,textvariable=self._enc_file,width=400,
-            font=(fh,10),fg_color=T["bg0"],border_color=T["brd"],
-            text_color=T["a1"],state="readonly").pack(side="left",padx=8)
-        NvBtn(fc,T,"dim",text="📁 Escolher",width=110,height=30,
-              command=lambda: self._enc_file.set(
-                  filedialog.askopenfilename() or self._enc_file.get())
-              ).pack(in_=fcr,side="left",padx=4)
-
-        # Log de operações
-        self._enc_log = ctk.CTkTextbox(f,height=280,font=("Courier New",10),
-            fg_color=T["bg2"],text_color=T["a1"],border_color=T["brd"],border_width=1)
-        self._enc_log.pack(fill="both",expand=True)
-        self._enc_log.insert("end","🔒 Encriptador: Pronto\n")
-        self._enc_log.configure(state="disabled")
-
-    def _enc_encrypt(self):
-        if not HAS_CRYPTO:
-            messagebox.showerror("Erro","cryptography não instalado")
-            return
-        
-        fp = self._enc_file.get()
-        if not fp or not os.path.isfile(fp):
-            messagebox.showerror("Erro","Selecione um arquivo válido")
-            return
-        
-        self._enc_write(f"🔐 Encriptando: {Path(fp).name}\n")
-        
-        def worker():
-            try:
-                key = Fernet.generate_key()
-                key_file = Path(fp).with_suffix(".key")
-                key_file.write_bytes(key)
-                
-                cipher = Fernet(key)
-                data = Path(fp).read_bytes()
-                encrypted = cipher.encrypt(data)
-                
-                enc_file = Path(fp).with_suffix(".enc")
-                enc_file.write_bytes(encrypted)
-                
-                self.after(0, self._enc_write,
-                    f"✓ Arquivo encriptado\n"
-                    f"📄 Original: {fp}\n"
-                    f"🔐 Encriptado: {enc_file}\n"
-                    f"🔑 Chave: {key_file}\n\n"
-                    f"⚠ Guarde a chave com segurança!")
-                
-                log(f"Arquivo encriptado: {fp}")
-                self.after(0, self.toast.push, "✓ Encriptado",
-                          f"{Path(fp).name} encriptado com sucesso", "ok")
-            except Exception as e:
-                self.after(0, self._enc_write, f"✗ Erro: {str(e)}")
-        
-        threading.Thread(target=worker, daemon=True).start()
-    
-    def _enc_decrypt(self):
-        if not HAS_CRYPTO:
-            messagebox.showerror("Erro","cryptography não instalado")
-            return
-        
-        fp = filedialog.askopenfilename(filetypes=[("Encrypted","*.enc"),("Todos","*.*")])
-        if not fp:
-            return
-        
-        key_file = filedialog.askopenfilename(filetypes=[("Key","*.key"),("Todos","*.*")])
-        if not key_file:
-            return
-        
-        self._enc_write(f"🔓 Decriptando: {Path(fp).name}\n")
-        
-        def worker():
-            try:
-                key = Path(key_file).read_bytes()
-                cipher = Fernet(key)
-                encrypted_data = Path(fp).read_bytes()
-                decrypted = cipher.decrypt(encrypted_data)
-                
-                dec_file = Path(fp).with_suffix("")
-                dec_file.write_bytes(decrypted)
-                
-                self.after(0, self._enc_write,
-                    f"✓ Arquivo decriptado\n"
-                    f"🔐 Original: {fp}\n"
-                    f"📄 Decriptado: {dec_file}\n\n"
-                    f"✓ Sucesso!")
-                
-                log(f"Arquivo decriptado: {fp}")
-                self.after(0, self.toast.push, "✓ Decriptado",
-                          f"{Path(fp).name} decriptado com sucesso", "ok")
-            except Exception as e:
-                self.after(0, self._enc_write, f"✗ Erro: {str(e)}")
-        
-        threading.Thread(target=worker, daemon=True).start()
-    
-    def _enc_write(self, msg):
-        self._enc_log.configure(state="normal")
-        self._enc_log.insert("end", msg+"\n")
-        self._enc_log.see("end")
-        self._enc_log.configure(state="disabled")
 
     # ════════════════════════════════════════════════════════════════════════
     # ABA 12 — CONFIGURAÇÕES & TEMAS
